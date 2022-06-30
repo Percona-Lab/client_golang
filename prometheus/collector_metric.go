@@ -23,7 +23,7 @@ func MeasureCollectTime(ch chan<- Metric, exporter, collector string) func() {
 		"collector_scrape_time_ms",
 		"Time taken for scrape by collector",
 		[]string{"exporter"},
-		Labels{"collector": collector},
+		Labels{"collector": collector}, // to have ID calculated correctly
 	)
 
 	return func() {
