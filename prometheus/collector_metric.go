@@ -13,6 +13,10 @@
 
 package prometheus
 
+import (
+	"log"
+)
+
 const (
 	metricsBufferSize = 1024 * 8
 )
@@ -38,7 +42,12 @@ func NewMetaMetricsCollector() *MetaMetrics {
 }
 
 func (m *MetaMetrics) Add(metric Metric) {
-	m.cache <- metric
+	select {
+	case m.cache <- metric:
+	default:
+		log.Println("MetaMetrics blocked")
+	}
+
 }
 
 func (m *MetaMetrics) Describe(ch chan<- *Desc) {
@@ -46,12 +55,13 @@ func (m *MetaMetrics) Describe(ch chan<- *Desc) {
 }
 
 func (m *MetaMetrics) Collect(ch chan<- Metric) {
+collect:
 	for {
 		select {
 		case metric := <-m.cache:
 			ch <- metric
 		default:
-			break
+			break collect
 		}
 	}
 }

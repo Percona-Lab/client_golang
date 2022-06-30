@@ -447,9 +447,9 @@ func (r *Registry) Gather() ([]*dto.MetricFamily, error) {
 
 	wg.Add(goroutineBudget)
 
+	var metaMetricCollector Collector
 	collectWorker := func() {
 		for {
-			var metaMetricCollector Collector
 			select {
 			case collector := <-checkedCollectors:
 				if _, ok := collector.(*MetaMetrics); ok {
@@ -460,9 +460,6 @@ func (r *Registry) Gather() ([]*dto.MetricFamily, error) {
 			case collector := <-uncheckedCollectors:
 				collector.Collect(uncheckedMetricChan)
 			default:
-				if metaMetricCollector != nil {
-					metaMetricCollector.Collect(checkedMetricChan)
-				}
 				return
 			}
 			wg.Done()
@@ -477,6 +474,9 @@ func (r *Registry) Gather() ([]*dto.MetricFamily, error) {
 	// are collected.
 	go func() {
 		wg.Wait()
+		if metaMetricCollector != nil {
+			metaMetricCollector.Collect(checkedMetricChan)
+		}
 		close(checkedMetricChan)
 		close(uncheckedMetricChan)
 	}()
