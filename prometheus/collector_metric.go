@@ -13,51 +13,45 @@
 
 package prometheus
 
+const (
+	metricsBufferSize = 1024 * 8
+)
+
 var (
-	descScrapeTime *Desc
-	metricCache    chan Metric
+	MetricsCollector = NewMetaMetricsCollector()
 )
 
 type MetaMetrics struct {
-	scrapeTime  *Desc
-	metricCache chan Metric
+	desc  *Desc
+	cache chan Metric
 }
 
-func NewMetaMetricsCollector() Collector {
-	descScrapeTime = NewDesc(
-		"collector_scrape_time_ms",
-		"Time taken for scrape by collector",
-		[]string{"exporter", "collector"},
-		nil)
-
+func NewMetaMetricsCollector() *MetaMetrics {
 	return &MetaMetrics{
-		scrapeTime:  descScrapeTime,
-		metricCache: makeMetricsCache(),
+		desc: NewDesc(
+			"collector_scrape_time_ms",
+			"Time taken for scrape by collector",
+			[]string{"exporter", "collector"},
+			nil),
+		cache: make(chan Metric, metricsBufferSize),
 	}
 }
 
-func makeMetricsCache() chan Metric {
-	// TODO : Use a more appropriate collector count
-	metricCache = make(chan Metric, 100)
-	return metricCache
+func (m *MetaMetrics) Add(metric Metric) {
+	m.cache <- metric
 }
 
-func GetScrapeDescripter() *Desc {
-	return descScrapeTime
+func (m *MetaMetrics) Describe(ch chan<- *Desc) {
+	ch <- m.desc
 }
 
-func PushMetaMetrics(m Metric) {
-	metricCache <- m
-}
-
-func (c *MetaMetrics) Describe(ch chan<- *Desc) {
-	ch <- c.scrapeTime
-}
-
-func (c *MetaMetrics) Collect(ch chan<- Metric) {
-	close(c.metricCache)
-	for m := range c.metricCache {
-		ch <- m
+func (m *MetaMetrics) Collect(ch chan<- Metric) {
+	for {
+		select {
+		case metric := <-m.cache:
+			ch <- metric
+		default:
+			break
+		}
 	}
-	c.metricCache = makeMetricsCache()
 }
