@@ -13,58 +13,24 @@
 
 package prometheus
 
-import (
-	"log"
-)
+import "time"
 
-const (
-	metricsBufferSize = 1024 * 8
-)
+var timeToCollectDesc = NewDesc(
+	"collector_scrape_time_ms",
+	"Time taken for scrape by collector",
+	[]string{"exporter", "collector"},
+	nil)
 
-var (
-	MetricsCollector = NewMetaMetricsCollector()
-)
+func MeasureCollectTime(ch chan<- Metric, labelValues ...string) func() {
+	startTime := time.Now()
 
-type MetaMetrics struct {
-	desc  *Desc
-	cache chan Metric
-}
-
-func NewMetaMetricsCollector() *MetaMetrics {
-	return &MetaMetrics{
-		desc: NewDesc(
-			"collector_meta",
-			"Meta Collector",
-			[]string{},
-			nil),
-		cache: make(chan Metric, metricsBufferSize),
-	}
-}
-
-// Add adds metric to cache. If cache is full, metric is skipped not to block process.
-func (m *MetaMetrics) Add(metric Metric) {
-	select {
-	case m.cache <- metric:
-	default: // if buffer is full, discard metric
-		//TODO: is there a better way to log?
-		log.Println("MetaMetrics blocked")
-	}
-
-}
-
-func (m *MetaMetrics) Describe(ch chan<- *Desc) {
-	ch <- m.desc
-}
-
-// Collect collected buffered metrics, after collecting all of them we exit.
-func (m *MetaMetrics) Collect(ch chan<- Metric) {
-collect:
-	for {
-		select {
-		case metric := <-m.cache:
-			ch <- metric
-		default: // exit after we collected all metrics
-			break collect
-		}
+	return func() {
+		scrapeTime := time.Since(startTime)
+		scrapeMetric := MustNewConstMetric(
+			timeToCollectDesc,
+			GaugeValue,
+			float64(scrapeTime.Milliseconds()),
+			labelValues...)
+		ch <- scrapeMetric
 	}
 }
