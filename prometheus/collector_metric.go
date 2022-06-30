@@ -13,16 +13,18 @@
 
 package prometheus
 
-import "time"
+import (
+	"time"
+)
 
-var timeToCollectDesc = NewDesc(
-	"collector_scrape_time_ms",
-	"Time taken for scrape by collector",
-	[]string{"exporter", "collector"},
-	nil)
-
-func MeasureCollectTime(ch chan<- Metric, labelValues ...string) func() {
+func MeasureCollectTime(ch chan<- Metric, exporter, collector string) func() {
 	startTime := time.Now()
+	var timeToCollectDesc = NewDesc(
+		"collector_scrape_time_ms",
+		"Time taken for scrape by collector",
+		[]string{"exporter"},
+		Labels{"collector": collector},
+	)
 
 	return func() {
 		scrapeTime := time.Since(startTime)
@@ -30,7 +32,7 @@ func MeasureCollectTime(ch chan<- Metric, labelValues ...string) func() {
 			timeToCollectDesc,
 			GaugeValue,
 			float64(scrapeTime.Milliseconds()),
-			labelValues...)
+			exporter)
 		ch <- scrapeMetric
 	}
 }
