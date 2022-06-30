@@ -41,10 +41,12 @@ func NewMetaMetricsCollector() *MetaMetrics {
 	}
 }
 
+// Add adds metric to cache. If cache is full, metric is skipped not to block process.
 func (m *MetaMetrics) Add(metric Metric) {
 	select {
 	case m.cache <- metric:
-	default:
+	default: // if buffer is full, discard metric
+		//TODO: is there a better way to log?
 		log.Println("MetaMetrics blocked")
 	}
 
