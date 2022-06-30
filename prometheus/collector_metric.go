@@ -54,13 +54,14 @@ func (m *MetaMetrics) Describe(ch chan<- *Desc) {
 	ch <- m.desc
 }
 
+// Collect collected buffered metrics, after collecting all of them we exit.
 func (m *MetaMetrics) Collect(ch chan<- Metric) {
 collect:
 	for {
 		select {
 		case metric := <-m.cache:
 			ch <- metric
-		default:
+		default: // exit after we collected all metrics
 			break collect
 		}
 	}
