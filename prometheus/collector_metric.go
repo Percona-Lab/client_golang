@@ -33,9 +33,9 @@ type MetaMetrics struct {
 func NewMetaMetricsCollector() *MetaMetrics {
 	return &MetaMetrics{
 		desc: NewDesc(
-			"collector_scrape_time_ms",
-			"Time taken for scrape by collector",
-			[]string{"exporter", "collector"},
+			"collector_meta",
+			"Meta Collector",
+			[]string{},
 			nil),
 		cache: make(chan Metric, metricsBufferSize),
 	}
